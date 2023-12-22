@@ -1,1 +1,1 @@
-# LOG8415 - Scaling Databases and Implementing Cloud Design Patterns
+# LOG8415 - Final Project
