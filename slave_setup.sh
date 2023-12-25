@@ -1,34 +1,41 @@
 #!/bin/bash
 
-# Common setup
+# Install dependencies
 sudo apt-get update
-sudo apt-get -y install libncurses5
+sudo apt-get install libncurses5 libclass-methodmaker-perl -y 
 
-mkdir -p /opt/mysqlcluster/home
-cd /opt/mysqlcluster/home
-wget http://dev.mysql.com/get/Downloads/MySQL-Cluster-7.2/mysql-cluster-gpl-7.2.1-linux2.6-x86_64.tar.gz
-tar xvf mysql-cluster-gpl-7.2.1-linux2.6-x86_64.tar.gz
-ln -s mysql-cluster-gpl-7.2.1-linux2.6-x86_64 mysqlc
+# Download and install MySQL data node daemon
+cd /home/ubuntu
+sudo wget https://dev.mysql.com/get/Downloads/MySQL-Cluster-7.6/mysql-cluster-community-data-node_7.6.6-1ubuntu18.04_amd64.deb
+sudo dpkg -i mysql-cluster-community-data-node_7.6.6-1ubuntu18.04_amd64.deb
 
-echo 'export MYSQLC_HOME=/opt/mysqlcluster/home/mysqlc' > /etc/profile.d/mysqlc.sh
-echo 'export PATH=$MYSQLC_HOME/bin:$PATH' >> /etc/profile.d/mysqlc.sh
-source /etc/profile.d/mysqlc.sh
+# Specify the master node
+sudo bash -c 'echo "
+[mysql_cluster]
+ndb-connectstring=<master_private_dns>
+" > /etc/my.cnf'
 
-# Create directories for the cluster
-sudo mkdir -p /opt/mysqlcluster/deploy
-cd /opt/mysqlcluster/deploy
-sudo mkdir conf
-sudo mkdir mysqld_data
-sudo mkdir ndb_data
-cd conf
+# Creating data directory 
+sudo mkdir -p /usr/local/mysql/data
 
-# Configuration for ndbd (data node)
-echo "[ndbd]" > config.ini
-echo "hostname=<data_node_private_dns>" >> config.ini
-echo "nodeid=2" >> config.ini
+# Add the instructions for systemd to start, stop, and restart ndb_mgmd
+echo "
+[Unit]
+Description=MySQL NDB Data Node Daemon
+After=network.target auditd.service
 
-# Start the data node
-/opt/mysqlcluster/home/mysqlc/bin/ndbd -c /opt/mysqlcluster/deploy/conf/config.ini --initial --configdir=/opt/mysqlcluster/deploy/conf/
+[Service]
+Type=forking
+ExecStart=/usr/sbin/ndbd
+ExecReload=/bin/kill -HUP $MAINPID
+KillMode=process
+Restart=on-failure
 
-# Check status
-/opt/mysqlcluster/home/mysqlc/bin/ndb_mgm -e show
+[Install]
+WantedBy=multi-user.target
+" > /etc/systemd/system/ndbd.service
+
+# Reload systemd manager, enable ndb_mgmd and start ndb_mgmd
+sudo systemctl daemon-reload
+sudo systemctl enable ndbd
+sudo systemctl start ndbd

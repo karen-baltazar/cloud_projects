@@ -1,83 +1,93 @@
 #!/bin/bash
 
-# Common setup
+# Install dependencies
 sudo apt-get update
-sudo apt-get -y install libncurses5
+sudo apt-get install libncurses5 libaio1 libmecab2 -y
 
-mkdir -p /opt/mysqlcluster/home
-cd /opt/mysqlcluster/home
-wget http://dev.mysql.com/get/Downloads/MySQL-Cluster-7.2/mysql-cluster-gpl-7.2.1-linux2.6-x86_64.tar.gz
-tar xvf mysql-cluster-gpl-7.2.1-linux2.6-x86_64.tar.gz
-ln -s mysql-cluster-gpl-7.2.1-linux2.6-x86_64 mysqlc
+# Download and install the MySQL Cluster Manager, ndb_mgmd
+cd /home/ubuntu
+sudo wget https://dev.mysql.com/get/Downloads/MySQL-Cluster-7.6/mysql-cluster-community-management-server_7.6.6-1ubuntu18.04_amd64.deb
+sudo dpkg -i mysql-cluster-community-management-server_7.6.6-1ubuntu18.04_amd64.deb
 
-echo 'export MYSQLC_HOME=/opt/mysqlcluster/home/mysqlc' > /etc/profile.d/mysqlc.sh
-echo 'export PATH=$MYSQLC_HOME/bin:$PATH' >> /etc/profile.d/mysqlc.sh
-source /etc/profile.d/mysqlc.sh
+# Create the /var/lib/mysql-cluster/config.ini file for the cluster configuration  
+sudo mkdir /var/lib/mysql-cluster
+echo "
+[ndbd default]
+NoOfReplicas=3	
 
-# Create directories for the cluster
-sudo mkdir -p /opt/mysqlcluster/deploy
-cd /opt/mysqlcluster/deploy
-sudo mkdir conf
-sudo mkdir mysqld_data
-sudo mkdir ndb_data
-cd conf
-
-# Create configuration files
-sudo tee my.cnf <<EOL
-[mysqld]
-ndbcluster
-datadir=/opt/mysqlcluster/deploy/mysqld_data
-basedir=/opt/mysqlcluster/home/mysqlc
-port=3306
-EOL
-
-sudo tee config.ini <<EOL
 [ndb_mgmd]
 hostname=<master_private_dns>
-datadir=/opt/mysqlcluster/deploy/ndb_data
-nodeid=1
-
-[ndbd default]
-noofreplicas=2
-datadir=/opt/mysqlcluster/deploy/ndb_data
+datadir=/var/lib/mysql-cluster 	
 
 [ndbd]
 hostname=<data_node_1_private_dns>
-nodeid=2
+NodeId=2			
+datadir=/usr/local/mysql/data
 
 [ndbd]
 hostname=<data_node_2_private_dns>
-nodeid=3
+NodeId=3			
+datadir=/usr/local/mysql/data
 
 [ndbd]
 hostname=<data_node_3_private_dns>
-nodeid=4
+NodeId=4			
+datadir=/usr/local/mysql/data
 
 [mysqld]
-nodeid=50
-EOL
+hostname=<master_private_dns>
+" > /var/lib/mysql-cluster/config.ini
 
-# Initialize the database
-sudo /opt/mysqlcluster/home/mysqlc/scripts/mysql_install_db --no-defaults --datadir=/opt/mysqlcluster/deploy/mysqld_data
+# Add the instructions for systemd to start, stop, and restart ndb_mgmd
+sudo bash -c 'cat > /etc/systemd/system/ndb_mgmd.service << EOF
+[Unit]
+Description=MySQL NDB Cluster Management Server
+After=network.target auditd.service
 
-# Start management node
-sudo /opt/mysqlcluster/home/mysqlc/bin/ndb_mgmd -f /opt/mysqlcluster/deploy/conf/config.ini --initial --configdir=/opt/mysqlcluster/deploy/conf
+[Service]
+Type=forking
+ExecStart=/usr/sbin/ndb_mgmd -f /var/lib/mysql-cluster/config.ini
+ExecReload=/bin/kill -HUP $MAINPID
+KillMode=process
+Restart=on-failure
 
-# Start data nodes
-sudo /opt/mysqlcluster/home/mysqlc/bin/ndbd -c <master_private_dns>:1186
-sudo /opt/mysqlcluster/home/mysqlc/bin/ndbd -c <data_node_1_private_dns>:1186
-sudo /opt/mysqlcluster/home/mysqlc/bin/ndbd -c <data_node_2_private_dns>:1186
-sudo /opt/mysqlcluster/home/mysqlc/bin/ndbd -c <data_node_3_private_dns>:1186
+[Install]
+WantedBy=multi-user.target
+EOF'
 
-# Check cluster status
-sudo /opt/mysqlcluster/home/mysqlc/bin/ndb_mgm -e show
+# Reload systemd manager, enable ndb_mgmd and start ndb_mgmd
+sudo systemctl daemon-reload
+sudo systemctl enable ndb_mgmd
+sudo systemctl start ndb_mgmd
 
-# Start SQL node
-sudo /opt/mysqlcluster/home/mysqlc/bin/mysqld --defaults-file=/opt/mysqlcluster/deploy/conf/my.cnf --user=root &
+# Download MySQL Server
+sudo wget https://dev.mysql.com/get/Downloads/MySQL-Cluster-7.6/mysql-cluster_7.6.6-1ubuntu18.04_amd64.deb-bundle.tar
+sudo mkdir install
+sudo tar -xvf mysql-cluster_7.6.6-1ubuntu18.04_amd64.deb-bundle.tar -C install/
+cd install
 
-# Wait for MySQL server to be ready
-echo "Waiting for MySQL server to be ready..."
-while ! sudo /opt/mysqlcluster/home/mysqlc/bin/mysqladmin --socket=/opt/mysqlcluster/deploy/mysqld_data/mysql.sock ping &> /dev/null ; do sleep 1; done
+# Install MySQL Server
+sudo dpkg -i mysql-common_7.6.6-1ubuntu18.04_amd64.deb
+sudo dpkg -i mysql-cluster-community-client_7.6.6-1ubuntu18.04_amd64.deb
+sudo dpkg -i mysql-client_7.6.6-1ubuntu18.04_amd64.deb
 
-# Secure MySQL installation
-sudo /opt/mysqlcluster/home/mysqlc/bin/mysql_secure_installation
+# Configure installation to avoid using MySQL prompt
+sudo debconf-set-selections <<< 'mysql-cluster-community-server_7.6.6 mysql-cluster-community-server/root-pass password root'
+sudo debconf-set-selections <<< 'mysql-cluster-community-server_7.6.6 mysql-cluster-community-server/re-root-pass password root'
+
+# Install the rest of the packages
+sudo dpkg -i mysql-cluster-community-server_7.6.6-1ubuntu18.04_amd64.deb
+sudo dpkg -i mysql-server_7.6.6-1ubuntu18.04_amd64.deb
+
+# Configure client to connect to the master node
+echo "
+[mysqld]
+ndbcluster                   
+
+[mysql_cluster]
+ndb-connectstring=<master_private_dns>
+" > /etc/mysql/my.cnf
+
+# Restart MySQL Server
+sudo systemctl restart mysql
+sudo systemctl enable mysql
