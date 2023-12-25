@@ -60,7 +60,7 @@ def get_subnet_id(zone):
         ])['Subnets'][0]['SubnetId']
     return subnetId
 
-def create_instance(count, instance_type, key_name, zone, subnet, security_group):        
+def create_instances(count, instance_type, key_name, zone, subnet, security_group):        
     # Define parameters for the instance
     instance = ec2.create_instances(
         ImageId = 'ami-0fc5d935ebf8bc3bc',
@@ -75,34 +75,34 @@ def create_instance(count, instance_type, key_name, zone, subnet, security_group
         SecurityGroupIds = [ security_group['GroupId'] ]           
     )
         
-    return instance
+    return instances
 
 def main():
     # Create key pair
     key_name = 'ms_kp_pem'
     key_obj = create_key_pair(key_name)
+    key_pair_name = key_obj.split()[2]
+    print(f'{key_pair_name}.pem')
 
     # Create security group
     security_group_name = 'securityGroup'
     vpc_id = ec2_client.describe_vpcs()['Vpcs'][0]['VpcId']
     security_group = create_security_group(name = security_group_name, desc='TP3 - Security Group', vpc_id=vpc_id)
 
-    # Create EC2 instance
+    # Create EC2 instance/instances
     zone_name = 'us-east-1a'
-    zone_subnet_id = get_subnet_id(zone_name)        
-    instance = create_instance(1, 't2.micro', key_name, zone_name, zone_subnet_id, security_group)
+    zone_subnet_id = get_subnet_id(zone_name)
+    cluster = create_instances(5, 't2.micro', key_name, zone_name, zone_subnet_id, security_group)
 
-    # Wait for the instance to enter the running state
-    instance[0].wait_until_running()
+    # Wait for the instances to enter the running state
+    for instance in cluster:
+        instance.wait_until_running()
 
-    # Reload the instance attributes
-    instance[0].load()
+        # Reload the instance attributes
+        instance.load()
 
-    # Extract the key name part
-    key_pair_name = key_obj.split()[2]
-
-    # Output {key name}:{DNS name}
-    print(f'{key_pair_name}.pem:{instance[0].public_dns_name}')
+        # Output {DNS name}
+        print(f'{instance.public_dns_name}')
 
 if __name__ == "__main__":
     main()
