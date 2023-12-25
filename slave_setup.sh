@@ -12,7 +12,7 @@ sudo dpkg -i mysql-cluster-community-data-node_7.6.6-1ubuntu18.04_amd64.deb
 # Specify the master node
 sudo bash -c 'echo "
 [mysql_cluster]
-ndb-connectstring=<master_private_dns>
+ndb-connectstring=<master_private_ip>
 " > /etc/my.cnf'
 
 # Creating data directory 

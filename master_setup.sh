@@ -9,37 +9,37 @@ cd /home/ubuntu
 sudo wget https://dev.mysql.com/get/Downloads/MySQL-Cluster-7.6/mysql-cluster-community-management-server_7.6.6-1ubuntu18.04_amd64.deb
 sudo dpkg -i mysql-cluster-community-management-server_7.6.6-1ubuntu18.04_amd64.deb
 
-# Create the /var/lib/mysql-cluster/config.ini file for the cluster configuration  
+# Create directory and configuration file for Cluster Manager  
 sudo mkdir /var/lib/mysql-cluster
 echo "
 [ndbd default]
 NoOfReplicas=3	
 
 [ndb_mgmd]
-hostname=<master_private_dns>
+hostname=<master_private_ip>
 datadir=/var/lib/mysql-cluster 	
 
 [ndbd]
-hostname=<data_node_1_private_dns>
+hostname=<data_node_1_private_ip>
 NodeId=2			
 datadir=/usr/local/mysql/data
 
 [ndbd]
-hostname=<data_node_2_private_dns>
+hostname=<data_node_2_private_ip>
 NodeId=3			
 datadir=/usr/local/mysql/data
 
 [ndbd]
-hostname=<data_node_3_private_dns>
+hostname=<data_node_3_private_ip>
 NodeId=4			
 datadir=/usr/local/mysql/data
 
 [mysqld]
-hostname=<master_private_dns>
+hostname=<master_private_ip>
 " > /var/lib/mysql-cluster/config.ini
 
 # Add the instructions for systemd to start, stop, and restart ndb_mgmd
-sudo bash -c 'cat > /etc/systemd/system/ndb_mgmd.service << EOF
+echo "
 [Unit]
 Description=MySQL NDB Cluster Management Server
 After=network.target auditd.service
@@ -53,7 +53,7 @@ Restart=on-failure
 
 [Install]
 WantedBy=multi-user.target
-EOF'
+" > /etc/systemd/system/ndb_mgmd.service
 
 # Reload systemd manager, enable ndb_mgmd and start ndb_mgmd
 sudo systemctl daemon-reload
@@ -85,7 +85,7 @@ echo "
 ndbcluster                   
 
 [mysql_cluster]
-ndb-connectstring=<master_private_dns>
+ndb-connectstring=<master_private_ip>
 " > /etc/mysql/my.cnf
 
 # Restart MySQL Server
