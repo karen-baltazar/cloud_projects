@@ -78,19 +78,31 @@ def create_instance(count, instance_type, key_name, zone, subnet, security_group
     return instance
 
 def main():
-    # Create a key pair
+    # Create key pair
     key_name = 'ms_kp_pem'
     key_obj = create_key_pair(key_name)
 
-    # Create a security group
+    # Create security group
     security_group_name = 'securityGroup'
     vpc_id = ec2_client.describe_vpcs()['Vpcs'][0]['VpcId']
     security_group = create_security_group(name = security_group_name, desc='TP3 - Security Group', vpc_id=vpc_id)
 
-    # Create the instance
+    # Create EC2 instance
     zone_name = 'us-east-1a'
     zone_subnet_id = get_subnet_id(zone_name)        
     instance = create_instance(1, 't2.micro', key_name, zone_name, zone_subnet_id, security_group)
+
+    # Wait for the instance to enter the running state
+    instance[0].wait_until_running()
+
+    # Reload the instance attributes
+    instance[0].load()
+
+    # Extract the key name part
+    key_pair_name = key_obj.split()[2]
+
+    # Output {key name}:{DNS name}
+    print(f'{key_pair_name}.pem:{instance[0].public_dns_name}')
 
 if __name__ == "__main__":
     main()
