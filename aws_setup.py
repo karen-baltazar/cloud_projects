@@ -89,7 +89,7 @@ def main():
     vpc_id = ec2_client.describe_vpcs()['Vpcs'][0]['VpcId']
     security_group = create_security_group(name = security_group_name, desc='TP3 - Security Group', vpc_id=vpc_id)
 
-    # Create EC2 instance/instances
+    # Create database instances [stand-alone/cluster]
     zone_name = 'us-east-1a'
     zone_subnet_id = get_subnet_id(zone_name)
     cluster = create_instances(5, 't2.micro', key_name, zone_name, zone_subnet_id, security_group)
@@ -103,6 +103,12 @@ def main():
 
         # Output {DNS name}
         print(f'{instance.public_dns_name}')
+
+    # Create proxy instance
+    proxy_instance = create_instances(1, 't2.large', key_name, zone_name, zone_subnet_id, security_group)[0]
+    proxy_instance.wait_until_running()
+    proxy_instance.load()
+    print(f'{proxy_instance.public_dns_name}')
 
 if __name__ == "__main__":
     main()
