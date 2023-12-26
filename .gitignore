@@ -6,8 +6,9 @@ __pycache__/
 # C extensions
 *.so
 
-# Others
+# Specific files types
 *.pem
+*.txt
 
 # Distribution / packaging
 .Python
