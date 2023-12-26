@@ -9,15 +9,15 @@ DNS_NAMES=$(echo "$output" | tail -n +2)
 # Step 2: Copy mysql_stand_alone.sh to the AWS instance
 echo "Step 2: Copying mysql_stand_alone.sh to the AWS instance..."
 DNS_NAME=$(echo "$DNS_NAMES" | head -n 1)
-sudo scp -o StrictHostKeyChecking=no -i $KEY_NAME mysql_stand_alone.sh ubuntu@$DNS_NAME:/home/ubuntu
-sudo scp -o StrictHostKeyChecking=no -i $KEY_NAME benchmark.sh ubuntu@$DNS_NAME:/home/ubuntu
+sudo scp -o StrictHostKeyChecking=no -i $KEY_NAME db_scripts/mysql_stand_alone.sh ubuntu@$DNS_NAME:/home/ubuntu
+sudo scp -o StrictHostKeyChecking=no -i $KEY_NAME db_scripts/benchmark.sh ubuntu@$DNS_NAME:/home/ubuntu
 
 # Step 3: Copy master.sh, slave.sh, and benchmark.sh to the AWS instances for MySQL Cluster
 echo "Step 3: Copying master.sh, slave.sh, and benchmark.sh to the AWS instances..."
 for DNS in $(echo "$DNS_NAMES" | tail -n +2); do
-  sudo scp -o StrictHostKeyChecking=no -i $KEY_NAME master.sh ubuntu@$DNS:/home/ubuntu
-  sudo scp -o StrictHostKeyChecking=no -i $KEY_NAME slave.sh ubuntu@$DNS:/home/ubuntu
-  sudo scp -o StrictHostKeyChecking=no -i $KEY_NAME benchmark.sh ubuntu@$DNS:/home/ubuntu
+  sudo scp -o StrictHostKeyChecking=no -i $KEY_NAME db_scripts/master.sh ubuntu@$DNS:/home/ubuntu
+  sudo scp -o StrictHostKeyChecking=no -i $KEY_NAME db_scripts/slave.sh ubuntu@$DNS:/home/ubuntu
+  sudo scp -o StrictHostKeyChecking=no -i $KEY_NAME db_scripts/benchmark.sh ubuntu@$DNS:/home/ubuntu
 done
 
 # Step 4: Copying proxy_setup.py to the Proxy instance
