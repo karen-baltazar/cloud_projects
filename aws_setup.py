@@ -84,6 +84,9 @@ def main():
     key_pair_name = key_obj.split()[2]
     print(f'{key_pair_name}.pem')
 
+    # List to store private IP addresses
+    private_ip_addresses = []
+
     # Create security group
     security_group_name = 'securityGroup'
     vpc_id = ec2_client.describe_vpcs()['Vpcs'][0]['VpcId']
@@ -101,8 +104,20 @@ def main():
         # Reload the instance attributes
         instance.load()
 
+        # Get and store the private IP address
+        private_ip_addresses.append(instance.private_ip_address)
+
         # Output {DNS name}
         print(f'{instance.public_dns_name}')
+
+    # Skip the first IP if there is at least one instance in the cluster
+    if private_ip_addresses:
+        private_ip_addresses = private_ip_addresses[1:]
+
+    # Save private IP addresses to a text file
+    with open('private_ips.txt', 'w') as file:
+        for ip in private_ip_addresses:
+            file.write(f'{ip}\n')
 
     # Create proxy instance
     proxy_instance = create_instances(1, 't2.large', key_name, zone_name, zone_subnet_id, security_group)[0]
