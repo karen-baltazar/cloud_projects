@@ -6,6 +6,10 @@ output=$(python3 aws_setup.py "$@")
 KEY_NAME=$(echo "$output" | head -n 1)
 DNS_NAMES=$(echo "$output" | tail -n +2)
 
+# Step 1.5: Update private IPs in scripts
+echo "Step 1.5: Updating private IPs in scripts..."
+./update_config_ips.sh
+
 # Step 2: Copy mysql_stand_alone.sh to the AWS instance
 echo "Step 2: Copying mysql_stand_alone.sh to the AWS instance..."
 DNS_NAME=$(echo "$DNS_NAMES" | head -n 1)
