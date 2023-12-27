@@ -1,9 +1,12 @@
 import sys
 import random
+import re
 import mysql.connector
 from ping3 import ping, verbose_ping
 
 # Configuration data [replace with your own values]
+proxy_ip = "<proxy_private_ip>"
+proxy_port = 60000  # This is the port that the Proxy is listening on
 mysql_user = "root"
 mysql_password = "root"
 database_name = 'sakila'
@@ -35,8 +38,7 @@ def forward_to_node(node_ip, query):
             with cnx.cursor() as cursor:
                 cursor.execute(query)
                 rows = cursor.fetchall()
-                for row in rows:
-                    print(row)
+                return rows
             print(f"Query executed successfully on host {node_ip}")
         except mysql.connector.Error as err:
             print(f"Error executing query: {err}")
@@ -54,52 +56,59 @@ def measure_ping(ip):
         print(f"Error measuring ping to {ip}: {e}")
         return float('inf')
 
-def execute_direct_hit():
+def execute_direct_hit(query):
     print("Direct Hit Implementation...")
 
     # Forward the query to the master node
-    query = "SELECT * FROM inventory LIMIT 5;"
     forward_to_node(mysql_master_ip, query)
 
-def execute_random():
+def execute_random(query):
     print("Random Implementation...")
 
-    # Randomly select an IP from the slave nodes
+     # Forward the query to the randomly selected node
     random_slave_ip = random.choice(mysql_slave_ips)
-    
-    # Forward the query to the randomly selected node
-    query = "DELETE FROM film ORDER BY film_id ASC LIMIT 1;"
     forward_to_node(random_slave_ip, query)
 
-def execute_customized():
+def execute_customized(query):
     print("Customized Implementation...")
 
-    # Measure ping times for each server and find the server with the lowest ping time
+    # Forward the query to the server with the lowest ping time
     ping_times = {ip: measure_ping(ip) for ip in [mysql_master_ip] + mysql_slave_ips}
     best_ip = min(ping_times, key=ping_times.get)
-
-    # Forward the query to the server with the lowest ping time
-    query = "INSERT INTO language (name) VALUES ('Esperanto');"
     forward_to_node(best_ip, query)
 
-def main():
-    # Check if the correct number of command-line arguments is provided
-    if len(sys.argv) != 2:
-        print("Usage: python3 proxy_setup.py <implementation>")
-        sys.exit(1)
+def is_write_query(query):
+    # Check if the query is a write operation (INSERT, UPDATE, DELETE)
+    return re.match(r'\b(INSERT|UPDATE|DELETE)\b', query, re.IGNORECASE) is not None
 
-    implementation = sys.argv[1]
-
-    # Specific actions for the selected implementation
-    if implementation == "direct_hit":
-        execute_direct_hit()
-    elif implementation == "random":
-        execute_random()
-    elif implementation == "customized":
-        execute_customized()
+def execute_query(query):
+    # Determine which MySQL node to send the query to based on the type of operation
+    if is_write_query(query):
+        execute_direct_hit(query)
     else:
-        print(f"Unknown implementation: {implementation}")
-        sys.exit(1)
+        execute_customized(query)
+
+def main():
+     # Listen for incoming connections and receive the query
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
+        server_socket.bind((proxy_ip, proxy_port))
+        server_socket.listen()
+        print("Proxy listening for connections...")
+        connection, address = server_socket.accept()
+        with connection:
+            print(f"Connected to: {address}")
+            data = connection.recv(1024)
+            if not data:
+                print("No query received.")
+                return
+
+            query = data.decode("utf-8")
+
+            # Forward the query to the appropriate MySQL node and get the results
+            results = execute_query(query)
+
+            # Send the results back to the client
+            connection.sendall(str(results).encode("utf-8"))
 
 if __name__ == "__main__":
     main()
