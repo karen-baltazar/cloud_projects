@@ -17,3 +17,24 @@ To conduct benchmarking after executing `scripts.sh`, follow these steps:
 5. To view the results, navigate to the `/home/ubuntu/` directory and open the file using a text editor such as `nano` or `cat`.
 
 For more information, see the attached report in the repository.
+
+## 2. Proxy Execution
+
+Make sure you have completed the cluster configuration before running the proxy.
+
+1. Connect via SSH to the proxy instance.
+2. Run the following commands to install the dependencies:
+    ```bash
+    sudo apt-get update
+    sudo apt-get install -y python3
+    pip3 install mysql-connector-python
+    pip3 install ping3
+    ```
+3. Run the proxy Python file with the desired implementation (direct_hit, random, customized):
+    ```bash
+    python3 proxy_setup.py <implementation>
+    ```
+
+Note: The queries in the `proxy_setup.py` file are predefined and may require adjustments to make them dynamic.
+
+For more information, see the attached report in the repository.
