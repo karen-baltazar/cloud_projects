@@ -13,38 +13,40 @@ def create_key_pair(name):
         ec2.create_key_pair(KeyName=name)
     return ec2_client.describe_key_pairs(KeyNames=[name], IncludePublicKey=True)['KeyPairs'][0]['PublicKey']
 
-def create_security_group(name, desc, vpc_id):
-    # If security group does not exist, create one
+def create_security_group_with_ports(name, desc, vpc_id, common_ports, additional_ports):
     try:
         sg = ec2_client.describe_security_groups(GroupNames=[name])['SecurityGroups'][0]
     except ClientError as e:
-        ec2.create_security_group(GroupName=name, Description = desc, VpcId=vpc_id)
-    
+        ec2.create_security_group(GroupName=name, Description=desc, VpcId=vpc_id)
+
         sg = ec2_client.describe_security_groups(GroupNames=[name])['SecurityGroups'][0]
 
-        # Add rules for security
-        ec2_client.authorize_security_group_ingress(
-            GroupId = sg['GroupId'],
-            IpPermissions = [
-            {
-                'IpProtocol': 'tcp',
-                'FromPort': 80,
-                'ToPort': 80,
-                'IpRanges': [{'CidrIp': '0.0.0.0/0'}]
-            },
-            {
-                'IpProtocol': 'tcp',
-                'FromPort': 22,
-                'ToPort': 22,
-                'IpRanges': [{'CidrIp': '0.0.0.0/0'}]
-            },
-            {
-                'IpProtocol': 'tcp',
-                'FromPort': 443,
-                'ToPort': 443,
-                'IpRanges': [{'CidrIp': '0.0.0.0/0'}]
-            },
-            ]) 
+        # Add common ports
+        for port in common_ports:
+            ec2_client.authorize_security_group_ingress(
+                GroupId=sg['GroupId'],
+                IpPermissions=[
+                    {
+                        'IpProtocol': 'tcp',
+                        'FromPort': port,
+                        'ToPort': port,
+                        'IpRanges': [{'CidrIp': '0.0.0.0/0'}]
+                    },
+                ])
+
+        # Add additional ports
+        for port in additional_ports:
+            ec2_client.authorize_security_group_ingress(
+                GroupId=sg['GroupId'],
+                IpPermissions=[
+                    {
+                        'IpProtocol': 'tcp',
+                        'FromPort': port,
+                        'ToPort': port,
+                        'IpRanges': [{'CidrIp': '0.0.0.0/0'}]
+                    },
+                ])
+
     return sg
 
 def get_subnet_id(zone):
@@ -87,15 +89,26 @@ def main():
     # List to store private IP addresses
     private_ip_addresses = []
 
-    # Create security group
-    security_group_name = 'securityGroup'
+    # Create security groups for database, trusted host, gatekeeper, and proxy
     vpc_id = ec2_client.describe_vpcs()['Vpcs'][0]['VpcId']
-    security_group = create_security_group(name = security_group_name, desc='TP3 - Security Group', vpc_id=vpc_id)
+    common_ports = [80, 22, 443]
+
+    # Define security group information
+    security_groups_to_create = [
+        {'name': 'database_sg', 'desc': 'Security Group for Database Instances', 'additional_ports': []},
+        {'name': 'proxy_sg', 'desc': 'Security Group for Proxy', 'additional_ports': [60000]},
+        {'name': 'gatekeeper_sg', 'desc': 'Security Group for Gatekeeper', 'additional_ports': [50000]},
+        {'name': 'trusted_host_sg', 'desc': 'Security Group for Trusted Host', 'additional_ports': [50000, 60000]},
+    ]
+
+    # Create security groups
+    for sg_info in security_groups_to_create:
+        security_group = create_security_group_with_ports(sg_info['name'], sg_info['desc'], vpc_id, common_ports, sg_info['additional_ports'])
 
     # Create database instances [stand-alone/cluster]
     zone_name = 'us-east-1a'
     zone_subnet_id = get_subnet_id(zone_name)
-    cluster = create_instances(5, 't2.micro', key_name, zone_name, zone_subnet_id, security_group)
+    cluster = create_instances(5, 't2.micro', key_name, zone_name, zone_subnet_id, security_group[0])
 
     # Wait for the instances to enter the running state
     for instance in cluster:
@@ -114,16 +127,24 @@ def main():
     if private_ip_addresses:
         private_ip_addresses = private_ip_addresses[1:]
 
+    # Create trusted host, gatekeeper, and proxy instances
+    instances_to_create = [
+        {'name': 'Proxy', 'type': 't2.large', 'sg': security_group[1]},
+        {'name': 'Gatekeeper', 'type': 't2.large', 'sg': security_group[2]},
+        {'name': 'Trusted Host', 'type': 't2.large', 'sg': security_group[3]},
+    ]
+
+    for instance_info in instances_to_create:
+        instance = create_instances(1, instance_info['type'], key_name, zone_name, zone_subnet_id, instance_info['sg'])[0]
+        instance.wait_until_running()
+        instance.load()
+        private_ip_addresses.append(instance.private_ip_address)
+        print(f'{instance.public_dns_name}')
+
     # Save private IP addresses to a text file
     with open('private_ips.txt', 'w') as file:
         for ip in private_ip_addresses:
             file.write(f'{ip}\n')
-
-    # Create proxy instance
-    proxy_instance = create_instances(1, 't2.large', key_name, zone_name, zone_subnet_id, security_group)[0]
-    proxy_instance.wait_until_running()
-    proxy_instance.load()
-    print(f'{proxy_instance.public_dns_name}')
 
 if __name__ == "__main__":
     main()
