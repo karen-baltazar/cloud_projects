@@ -18,9 +18,11 @@ To conduct benchmarking after executing `scripts.sh`, follow these steps:
 
 For more information, see the attached report in the repository.
 
-## 2. Proxy Execution
+## 2. Cloud Patterns Execution
 
-Make sure you have completed the cluster configuration before running the proxy.
+Make sure you have completed the cluster configuration before running the Cloud Patterns.
+
+### 2.1 Proxy Execution
 
 1. Connect via SSH to the proxy instance.
 2. Run the following commands to install the dependencies:
@@ -30,11 +32,37 @@ Make sure you have completed the cluster configuration before running the proxy.
     pip3 install mysql-connector-python
     pip3 install ping3
     ```
-3. Run the proxy Python file with the desired implementation (direct_hit, random, customized):
+3. Run the proxy Python file:
     ```bash
-    python3 proxy_setup.py <implementation>
+    python3 proxy_setup.py
     ```
 
-Note: The queries in the `proxy_setup.py` file are predefined and may require adjustments to make them dynamic.
+### 2.2 Trusted Host Execution
+
+1. Connect via SSH to the trusted host instance.
+2. Run the following commands to update the system and install Python:
+    ```bash
+    sudo apt update
+    sudo apt install -y python3
+    ```
+3. Run the trusted host Python file:
+    ```bash
+    python3 trusted_host_setup.py
+    ```
+
+### 2.3 Gatekeeper Execution
+
+1. Connect via SSH to the gatekeeper instance.
+2. Run the following commands to update the system and install Python:
+    ```bash
+    sudo apt update
+    sudo apt install -y python3
+    ```
+3. Run the gatekeeper Python file:
+    ```bash
+    python3 gatekeeper_setup.py "<query>"
+    ```
+   
+Note: Replace `"<query>"` with the SQL query you want to execute on the Sakila database.
 
 For more information, see the attached report in the repository.
