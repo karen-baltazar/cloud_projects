@@ -1,6 +1,7 @@
 import sys
 import random
 import re
+import socket
 import mysql.connector
 from ping3 import ping, verbose_ping
 
