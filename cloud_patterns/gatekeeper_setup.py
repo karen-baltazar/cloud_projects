@@ -12,6 +12,10 @@ def send_query(query):
         client_socket.sendall(query.encode("utf-8"))
         print(f"Query sent to Trusted Host: {query}")
 
+        # Receive and print the results from Trusted Host
+        result = client_socket.recv(4096).decode("utf-8")
+        print(f"Results from Trusted Host:\n{result}")
+
 def main():
     # Check if the correct number of command-line arguments is provided
     if len(sys.argv) != 2:
