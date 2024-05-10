@@ -1,68 +1,18 @@
-# LOG8415 - Final Project
-## 1. Benchmarking MySQL stand-alone vs. MySQL Cluster
+# Cloud Projects
+This repository is a collection of cloud computing projects developed for the "Advanced Concepts of Cloud Computing" class. Each project is organized into its own folder within the repository.
 
-To conduct benchmarking after executing `scripts.sh`, follow these steps:
+## Projects
 
-### Stand-alone Environment:
-1. Connect to the stand-alone instance via SSH.
-2. Execute `mysql_stand_alone.sh` on the corresponding instance.
-3. Run `benchmark.sh` to perform performance tests and save the results to `/home/ubuntu/results.txt`.
-4. To view the results, navigate to the `/home/ubuntu/` directory and open the file using a text editor such as `nano` or `cat`.
+### Cloud_Database_Patterns
+This project explores database scaling techniques and the implementation of cloud design patterns. It involves setting up a MySQL cluster on Amazon EC2 and deploying an architecture by adding the Proxy and the Gatekeeper patterns. The assignment includes installing, configuring, and benchmarking MySQL standalone server against the MySQL cluster. Additionally, it focuses on implementing and comparing cloud patterns in a distributed cluster environment.
 
-### Cluster Environment:
-1. Connect to the master node instance via SSH.
-2. Execute `master_setup.sh` on the master node.
-3. Connect to each slave node via SSH and run `slave_setup.sh`.
-4. Reconnect to the master node and run `benchmark.sh` to perform performance tests. The results will be saved in `/home/ubuntu/results.txt`.
-5. To view the results, navigate to the `/home/ubuntu/` directory and open the file using a text editor such as `nano` or `cat`.
+### MapReduce_on_AWS
+This project demonstrates the implementation of MapReduce applications on the AWS cloud platform.
 
-For more information, see the attached report in the repository.
+### Cluster_Benchmarking
+This project delves into cluster benchmarking using EC2 Virtual Machines and Elastic Load Balancer.
 
-## 2. Cloud Patterns Execution
+Each project folder contains a README.md with detailed information about the project and instructions for running it.
 
-Make sure you have completed the cluster configuration before running the Cloud Patterns.
-
-### 2.1 Proxy Execution
-
-1. Connect via SSH to the proxy instance.
-2. Run the following commands to install the dependencies:
-    ```bash
-    sudo apt-get update
-    sudo apt-get install -y python3
-    pip3 install mysql-connector-python
-    pip3 install ping3
-    ```
-3. Run the proxy Python file:
-    ```bash
-    python3 proxy_setup.py
-    ```
-
-### 2.2 Trusted Host Execution
-
-1. Connect via SSH to the trusted host instance.
-2. Run the following commands to update the system and install Python:
-    ```bash
-    sudo apt update
-    sudo apt install -y python3
-    ```
-3. Run the trusted host Python file:
-    ```bash
-    python3 trusted_host_setup.py
-    ```
-
-### 2.3 Gatekeeper Execution
-
-1. Connect via SSH to the gatekeeper instance.
-2. Run the following commands to update the system and install Python:
-    ```bash
-    sudo apt update
-    sudo apt install -y python3
-    ```
-3. Run the gatekeeper Python file:
-    ```bash
-    python3 gatekeeper_setup.py "<query>"
-    ```
-   
-Note: Replace `"<query>"` with the SQL query you want to execute on the Sakila database.
-
-For more information, see the attached report in the repository.
+## License
+This project is licensed under the terms of the [MIT License](LICENSE).
