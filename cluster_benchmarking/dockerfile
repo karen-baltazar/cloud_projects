@@ -1,0 +1,16 @@
+# Use a Python 3.9 base image
+FROM python:3.9
+
+# Set a working directory to /app
+WORKDIR /app
+
+# Copy necessary files into the container
+COPY benchmarking.py /app
+COPY threaded_req.py /app
+COPY cloudwatch.py /app
+
+# Install dependencies
+RUN pip install requests boto3
+
+# Command to run benchmarking.py
+CMD ["python", "benchmarking.py"]
